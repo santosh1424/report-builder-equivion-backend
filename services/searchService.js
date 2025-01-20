@@ -2,28 +2,37 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { generateSummary } = require('../utils/openai');
 
+// Function to fetch Google Custom Search results using Google Custom Search API
 const fetchGoogleSearchResults = async (query) => {
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    const apiKey = 'AIzaSyAACvicGZxYjrp3kOTiG0idd-c5792Jrn0'; // Your Google API Key
+    const cx = '55500185f2faf4063'; // Your Custom Search Engine ID
 
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&key=${apiKey}&cx=${cx}`;
+    console.log('Search URL:', searchUrl);
     try {
-        // Get the HTML of the Google Search results page
-        const { data } = await axios.get(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-
-        // Load the HTML into cheerio
-        const $ = cheerio.load(data);
-
-        // Extract titles and URLs from the search results
-        const results = [];
-        $('h3').each((i, element) => {
-            const title = $(element).text();
-            const url = $(element).parent().attr('href');
-            results.push({ title, url });
-        });
-
-        return results;
+        // Send a GET request to the Google Custom Search API
+        const { data } = await axios.get(searchUrl, { timeout: 60000 });
+        console.log('Search results:', data);
+        // Check if the search response contains items
+        if (data.items && data.items.length > 0) {
+            // Extract titles and URLs from the API response
+            const results = data.items.map(item => ({
+                title: item.title,
+                url: item.link,
+            }));
+            return results;  // Return the results
+        } else {
+            console.log('No results found.');
+            return [];  // Return empty array if no results found
+        }
     } catch (error) {
-        console.error('Error scraping Google Search results:', error);
-        return [];
+        if (error.code === 'ECONNABORTED') {
+            console.error('Request timed out');
+        } else {
+            console.error('Error fetching data:', error.message);
+        }
+        console.error('Error fetching Google Search results:', error);
+        return [];  // Return empty array in case of error
     }
 };
 
